@@ -5,7 +5,7 @@ This readme explains the strategy logic, indicator math, coding structure etc.
 
 
 
-Things learnt while doing the process:
+Things learnt while doing the project:
 
 Understanding how stock market works and what is algorithmic trading.
 
