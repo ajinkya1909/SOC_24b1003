@@ -53,11 +53,15 @@ For getting heallthy profit, and other requirements like good win rate, fair num
 
 Entry Conditions:
 
-ADX must be above a threshold (here 30), signaling strong trend.
+ADX must be above a threshold (here 20), signaling strong trend.
 
-The difference between +DI and −DI must be large (here more than 12), indicating clear direction.
+The difference between +DI and −DI must be large (here more than 30), indicating clear direction.
 
-Volatility should be low (here under 3%) to avoid noisy markets.
+Volatility should be low (here under 5%) to avoid noisy markets leading to false signals.
+
+The absolute DI (+ or -) value should be greater than a particular limit and also greater than its opposite DI. (here 40)
+
+Recent trend (calculated from previous 3 frames) should be following the trend and above a particulaar value. (here opposite sign with 0.08 magnitude for including more trades)
 
 Directional strength must be increasing. (e.g., +DI today > +DI yesterday)
 
@@ -65,9 +69,9 @@ Exit Conditions:
 
 Trades are closed after 2 trading days max.
 
-If trade is profitable (>0.5%) after 1 day and ADX weakens implies exit early to secure gains.
+If trade is profitable (>=1.5%) after 1 day and ADX weakens implies exit early to secure gains.
 
-If trade is down more than 2% exit to stop loss to minimize loss.
+If trade is down more than 0.5% then exit to stop loss to minimize loss.
 
 Trade Tracking:
 Every trade is logged with entry and exit dates, prices and profit percentages, days held, ADX on entry and exit etc.
