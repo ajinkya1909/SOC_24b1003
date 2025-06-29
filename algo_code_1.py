@@ -4,7 +4,7 @@ import sys
 from datetime import datetime, timedelta
 
 class ADXBacktester:
-    def __init__(self, csv_file, period=14, adx_threshold=30, max_holding_days=2):
+    def __init__(self, csv_file, period=14, adx_threshold=25, max_holding_days=2):
         self.csv_file = csv_file
         self.period = period
         self.adx_threshold = adx_threshold
@@ -20,6 +20,8 @@ class ADXBacktester:
                 col_lower = col.lower().strip()
                 if 'date' in col_lower:
                     columns_map[col] = 'date'
+                elif 'time' in col_lower:
+                    columns_map[col] = 'time'
                 elif col_lower in ['open', 'o']:
                     columns_map[col] = 'open'
                 elif col_lower in ['high', 'h']:
@@ -27,20 +29,24 @@ class ADXBacktester:
                 elif col_lower in ['low', 'l']:
                     columns_map[col] = 'low'
                 elif col_lower in ['close', 'c']:
-                    columns_map[col] = 'close'
+                    columns_map[col] = 'close' 
                 elif col_lower in ['volume', 'vol', 'v']:
                     columns_map[col] = 'volume'
 
             self.data.rename(columns=columns_map, inplace=True)
-            try:
-                self.data['date'] = pd.to_datetime(self.data['date'], format='%Y-%m-%d')
-            except:
-                try:
-                    self.data['date'] = pd.to_datetime(self.data['date'], dayfirst=True)
-                except:
-                    self.data['date'] = pd.to_datetime(self.data['date'])
             
-            self.data.sort_values('date', inplace=True)
+            if 'time' in self.data.columns:
+                self.data['datetime'] = pd.to_datetime(self.data['date'].astype(str) + ' ' + self.data['time'].astype(str))
+            else:
+                try:
+                    self.data['datetime'] = pd.to_datetime(self.data['date'])
+                except:
+                    try:
+                        self.data['datetime'] = pd.to_datetime(self.data['date'], dayfirst=True)
+                    except:
+                        self.data['datetime'] = pd.to_datetime(self.data['date'])
+            
+            self.data.sort_values('datetime', inplace=True)
             self.data.reset_index(drop=True, inplace=True)
             
             self.data['price'] = self.data['close']
@@ -116,30 +122,31 @@ class ADXBacktester:
     def backtest_strategy(self):
         position = None
         entry_price = 0
-        entry_date = None
+        entry_datetime = None
         entry_idx = 0
-        
-        for i in range(self.period * 2, len(self.data) - self.max_holding_days):
-            current_date = self.data.loc[i, 'date']
+        for i in range(self.period, len(self.data)):
+            current_datetime = self.data.loc[i, 'datetime']
             current_price = self.data.loc[i, 'price']
             adx_val = self.data.loc[i, 'ADX']
             plus_di = self.data.loc[i, '+DI']
             minus_di = self.data.loc[i, '-DI']
-            if adx_val == 0 or np.isnan(adx_val) or adx_val < 15:
+            if adx_val == 0 or np.isnan(adx_val) or adx_val <= 20:
                 continue
             if position is not None:
-                days_held = i - entry_idx
+                intervals_held = i - entry_idx
+                max_intervals = self.max_holding_days * 96
+                
                 if position == 'long':
                     current_profit_pct = (current_price - entry_price) / entry_price * 100
                 else:
                     current_profit_pct = (entry_price - current_price) / entry_price * 100
                 should_exit = False
-                if days_held >= self.max_holding_days:
+                if intervals_held >= max_intervals:
                     should_exit = True
                 else:
-                    if current_profit_pct >= 3.0 and adx_val < self.data.loc[entry_idx, 'ADX'] * 0.9:
+                    if current_profit_pct >= 1.5 and adx_val <= self.data.loc[entry_idx, 'ADX'] * 0.85:
                         should_exit = True
-                    elif current_profit_pct <= -1.0:
+                    elif current_profit_pct <= -0.5 and adx_val <= self.data.loc[entry_idx, 'ADX'] * 0.85:
                         should_exit = True
                 
                 if should_exit:
@@ -149,53 +156,45 @@ class ADXBacktester:
                         profit_pct = (entry_price - current_price) / entry_price * 100
                     
                     self.trades.append({
-                        'entry_date': entry_date,
-                        'exit_date': current_date,
+                        'entry_datetime': entry_datetime,
+                        'exit_datetime': current_datetime,
                         'entry_price': entry_price,
                         'exit_price': current_price,
                         'position': position,
                         'profit_pct': profit_pct,
-                        'days_held': days_held,
+                        'intervals_held': intervals_held,
                         'adx_entry': self.data.loc[entry_idx, 'ADX'],
                         'adx_exit': adx_val,
                     })
                     
                     position = None
-            if position is None and adx_val > self.adx_threshold:
+            if position is None and adx_val >= self.adx_threshold:
                 di_difference = abs(plus_di - minus_di)
                 volatility = self.data.loc[i, 'volatility'] if not pd.isna(self.data.loc[i, 'volatility']) else 0.02
                 
-                if di_difference > 12 and volatility < 0.03:  
-                    if i + 2 < len(self.data):
-                        future_price_1 = self.data.loc[i + 1, 'price']
-                        future_price_2 = self.data.loc[i + 2, 'price']
-                        if (plus_di > minus_di and plus_di > 25 and 
-                            plus_di > self.data.loc[i-1, '+DI']):  
-                            recent_trend = (current_price - self.data.loc[i-3, 'price']) / self.data.loc[i-3, 'price']
-                            if recent_trend > -0.01: 
-                                future_return_1 = (future_price_1 - current_price) / current_price
-                                future_return_2 = (future_price_2 - current_price) / current_price
-                                if future_return_1 > 0.002 or future_return_2 > 0.002:
-                                    position = 'long'
-                                    entry_price = current_price
-                                    entry_date = current_date
-                                    entry_idx = i
-                        elif (minus_di > plus_di and minus_di > 25 and 
-                              minus_di > self.data.loc[i-1, '-DI']): 
-                            recent_trend = (current_price - self.data.loc[i-3, 'price']) / self.data.loc[i-3, 'price']
-                            if recent_trend < 0.01:  
-                                future_return_1 = (current_price - future_price_1) / current_price
-                                future_return_2 = (current_price - future_price_2) / current_price
-                                if future_return_1 > 0.002 or future_return_2 > 0.002:
-                                    position = 'short'
-                                    entry_price = current_price
-                                    entry_date = current_date
-                                    entry_idx = i
+                if di_difference >= 30 and volatility <= 0.05:  
+                    if (plus_di > minus_di and plus_di >= 40 and 
+                        plus_di > self.data.loc[i-1, '+DI']):  
+                        recent_trend = (current_price - self.data.loc[i-3, 'price']) / self.data.loc[i-3, 'price']
+                        if recent_trend >= -0.08: 
+                            position = 'long'
+                            entry_price = current_price
+                            entry_datetime = current_datetime
+                            entry_idx = i
+                    elif (minus_di > plus_di and minus_di >= 40 and 
+                          minus_di > self.data.loc[i-1, '-DI']): 
+                        recent_trend = (current_price - self.data.loc[i-3, 'price']) / self.data.loc[i-3, 'price']
+                        if recent_trend <= 0.08:  
+                            position = 'short'
+                            entry_price = current_price
+                            entry_datetime = current_datetime
+                            entry_idx = i
+        
         if position is not None:
             final_idx = len(self.data) - 1
             final_price = self.data.iloc[final_idx]['price']
-            final_date = self.data.iloc[final_idx]['date']
-            final_days = final_idx - entry_idx
+            final_datetime = self.data.iloc[final_idx]['datetime']
+            final_intervals = final_idx - entry_idx
             
             if position == 'long':
                 profit_pct = (final_price - entry_price) / entry_price * 100
@@ -203,12 +202,13 @@ class ADXBacktester:
                 profit_pct = (entry_price - final_price) / entry_price * 100
             
             self.trades.append({
-                'entry_date': entry_date,
-                'exit_date': final_date,
+                'entry_datetime': entry_datetime,
+                'exit_datetime': final_datetime,
                 'entry_price': entry_price,
                 'exit_price': final_price,
+                'position': position,
                 'profit_pct': profit_pct,
-                'days_held': final_days,
+                'intervals_held': final_intervals,
                 'adx_entry': self.data.loc[entry_idx, 'ADX'],
                 'adx_exit': self.data.iloc[final_idx]['ADX']
             })
@@ -253,7 +253,7 @@ def main():
     else:
         print("No CSV file provided.")
         exit(1)
-    backtester = ADXBacktester(csv_file, adx_threshold=30)  
+    backtester = ADXBacktester(csv_file, adx_threshold=25)  
     results = backtester.run_backtest()
 if __name__ == "__main__":
     main()
