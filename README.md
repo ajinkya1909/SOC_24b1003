@@ -76,3 +76,21 @@ Conclusion:
 ADX is a fair enough indicator which can give nice results if used properly.
 I have tested my code on many data sets and most of the results seemed to fulfil all the requirements.
 This is why I can conclude ADX to be good indicator when used with proper directional analysis for correct sell and buy states.
+
+Results obtained on backtesting (last 60 days data with candles of 15 minutes):
+
+DIVISLAB.NS : Number of trades = 15, Win Rate = 80%, Net Profit = 5.62%
+
+ETERNAL.NS : Number of trades = 40, Win Rate = 92.5%, Net Profit = 16.62%
+
+FIRSTCRY.NS : Number of trades = 38, Win Rate = 84.2%, Net Profit = 29.34%
+
+VBL.NS : Number of trades = 30, Win Rate = 86.7%, Net Profit = 10.56%
+
+TRENT.NS : Number of trades = 33, Win Rate = 93.9%, Net Profit = 16.50%
+
+TCS.NS : Number of trades = 10, Win Rate = 100%, Net Profit = 4.17%
+
+SBIN.NS : Number of trades = 6, Win Rate = 100%, Net Profit = 3.09%
+
+BAJFINANCE.NS : Number of trades = 25, Win Rate = 96%, Net Profit = 11.14%
