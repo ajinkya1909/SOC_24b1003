@@ -134,7 +134,7 @@ class ADXBacktester:
                 continue
             if position is not None:
                 intervals_held = i - entry_idx
-                max_intervals = self.max_holding_days * 96
+                max_intervals = self.max_holding_days * 48
                 
                 if position == 'long':
                     current_profit_pct = (current_price - entry_price) / entry_price * 100
