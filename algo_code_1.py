@@ -28,8 +28,6 @@ class ADXBacktester:
                     columns_map[col] = 'low'
                 elif col_lower in ['close', 'c']:
                     columns_map[col] = 'close'
-                elif 'adj' in col_lower and 'close' in col_lower:
-                    columns_map[col] = 'close' 
                 elif col_lower in ['volume', 'vol', 'v']:
                     columns_map[col] = 'volume'
 
@@ -61,7 +59,6 @@ class ADXBacktester:
         plus_DM = np.zeros(n)
         minus_DM = np.zeros(n)
         for i in range(1, n):
-            # True Range
             TR[i] = max(
                 high[i] - low[i],
                 abs(high[i] - close[i-1]),
